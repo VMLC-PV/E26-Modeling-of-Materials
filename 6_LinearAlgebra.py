@@ -1085,6 +1085,138 @@ def _(A0_ge, lu_solve, mo, np, trace_lu, v0_ge, v2_matrix_ui):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    **Wall-clock demonstration.** The saving above is easy to state but
+    easy to underestimate — timing it directly makes it concrete. For a
+    fixed $\mathbf{A}$ and $M$ different right-hand sides $\mathbf{v}$,
+    compare two routes to the same $M$ solutions:
+
+    - **Repeated Gaussian elimination** — re-run the full
+      $\mathcal{O}(N^3)$ elimination of Section 1 from scratch for
+      *every* $\mathbf{v}$.
+    - **LU decomposition** — factor $\mathbf{A}=\mathbf{L}\mathbf{U}$
+      once ($\mathcal{O}(N^3)$, paid a single time), then reduce every
+      $\mathbf{v}$ to the two $\mathcal{O}(N^2)$ triangular solves of
+      this section.
+
+    Both routes use partial pivoting (Sections 3 and 6) so the
+    comparison is fair and robust for a random $\mathbf{A}$. Drag the
+    sliders to change the system size $N$ and the number of
+    right-hand sides $M$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    lu_bench_N_slider = mo.ui.slider(20, 250, value=120, step=10, label="Matrix size $N$")
+    lu_bench_M_slider = mo.ui.slider(5, 200, value=60, step=5, label="Number of right-hand sides $M$")
+
+    return lu_bench_M_slider, lu_bench_N_slider
+
+
+@app.function
+def solve_many_gaussian(A, vs):
+    return [linsolve_gaussian_partial_pivot(A, v) for v in vs]
+
+
+@app.cell
+def _(lu_decomp_partial_pivot, lu_solve_partial_pivot):
+    def solve_many_lu(A, vs):
+        L, U, row_order = lu_decomp_partial_pivot(A)
+        return [lu_solve_partial_pivot(L, U, row_order, v) for v in vs]
+
+    return (solve_many_lu,)
+
+
+@app.cell
+def _(bench, lu_bench_M_slider, lu_bench_N_slider, np, solve_many_lu):
+    _rng = np.random.default_rng(0)
+    lu_bench_N = lu_bench_N_slider.value
+    lu_bench_M = lu_bench_M_slider.value
+
+    lu_bench_A = _rng.uniform(-1.0, 1.0, size=(lu_bench_N, lu_bench_N))
+    lu_bench_A[np.arange(lu_bench_N), np.arange(lu_bench_N)] += lu_bench_N
+    lu_bench_vs = [_rng.uniform(-1.0, 1.0, size=lu_bench_N) for _ in range(lu_bench_M)]
+
+    lu_bench_time_gaussian = bench(solve_many_gaussian, lu_bench_A, lu_bench_vs, repeats=1)
+    lu_bench_time_lu = bench(solve_many_lu, lu_bench_A, lu_bench_vs, repeats=1)
+    return lu_bench_M, lu_bench_N, lu_bench_time_gaussian, lu_bench_time_lu
+
+
+@app.cell(hide_code=True)
+def _(plt):
+    def draw_lu_benchmark_bar(time_gaussian, time_lu, N, M):
+        _GAUSS_COLOR = "#eb6834"
+        _LU_COLOR = "#2a78d6"
+
+        fig, ax = plt.subplots(figsize=(5.5, 4.5))
+        labels = [
+            f"Repeated Gaussian\nelimination ({M}$\\times$)",
+            f"LU decomposition once\n+ {M} triangular solves",
+        ]
+        times = [time_gaussian, time_lu]
+        bars = ax.bar(
+            labels, times, color=[_GAUSS_COLOR, _LU_COLOR], width=0.55,
+            edgecolor="black", lw=0.8,
+        )
+
+        for bar, t in zip(bars, times):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                f"{t:.3f} s", ha="center", va="bottom", fontsize=11,
+            )
+
+        ax.set_ylabel("Total wall time (s)")
+        ax.set_title(
+            f"Solving $\\mathbf{{A}}\\mathbf{{x}}=\\mathbf{{v}}$ for "
+            f"$M={M}$ right-hand sides, $N={N}$"
+        )
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.set_ylim(0, max(times) * 1.2)
+        fig.tight_layout()
+        return fig
+
+    return (draw_lu_benchmark_bar,)
+
+
+@app.cell(hide_code=True)
+def _(
+    draw_lu_benchmark_bar,
+    lu_bench_M,
+    lu_bench_M_slider,
+    lu_bench_N,
+    lu_bench_N_slider,
+    lu_bench_time_gaussian,
+    lu_bench_time_lu,
+    mo,
+):
+    _speedup = lu_bench_time_gaussian / lu_bench_time_lu
+
+    mo.vstack(
+        [mo.hstack([lu_bench_N_slider, lu_bench_M_slider], justify="center", gap=3),
+            draw_lu_benchmark_bar(
+                lu_bench_time_gaussian, lu_bench_time_lu, lu_bench_N, lu_bench_M
+            ),
+            mo.md(
+                f"""
+                For $N={lu_bench_N}$ and $M={lu_bench_M}$ right-hand sides:
+                repeated Gaussian elimination takes
+                **{lu_bench_time_gaussian:.3f} s** in total, versus
+                **{lu_bench_time_lu:.3f} s** for LU decomposition once
+                plus $M$ triangular solves — a **{_speedup:.1f}$\\times$**
+                speed-up. Drag the sliders above: the gap widens as $N$
+                grows Both routes still pay $\\mathcal{{O}}(N^3)$ once,
+                but Gaussian elimination pays it $M$ times whereas LU decomposition pays it only once.
+                """
+            ).callout(kind="success"),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## 6. LU decomposition with pivoting
     ---
 
