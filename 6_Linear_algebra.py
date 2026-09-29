@@ -1110,7 +1110,6 @@ def _(mo):
 def _(mo):
     lu_bench_N_slider = mo.ui.slider(20, 250, value=120, step=10, label="Matrix size $N$")
     lu_bench_M_slider = mo.ui.slider(5, 200, value=60, step=5, label="Number of right-hand sides $M$")
-
     return lu_bench_M_slider, lu_bench_N_slider
 
 
@@ -1149,10 +1148,10 @@ def _(plt):
         _GAUSS_COLOR = "#eb6834"
         _LU_COLOR = "#2a78d6"
 
-        fig, ax = plt.subplots(figsize=(5.5, 4.5))
+        fig, ax = plt.subplots(figsize=(7.5, 5.5))
         labels = [
-            f"Repeated Gaussian\nelimination ({M}$\\times$)",
-            f"LU decomposition once\n+ {M} triangular solves",
+            f"Repeated\n Gaus.-Elem\n ({M}$\\times$)",
+            f"LU decomp. once\n+ {M} triangular\n solves",
         ]
         times = [time_gaussian, time_lu]
         bars = ax.bar(
@@ -1171,7 +1170,7 @@ def _(plt):
             f"Solving $\\mathbf{{A}}\\mathbf{{x}}=\\mathbf{{v}}$ for "
             f"$M={M}$ right-hand sides, $N={N}$"
         )
-        ax.spines[["top", "right"]].set_visible(False)
+        # ax.spines[["top", "right"]].set_visible(False)
         ax.set_ylim(0, max(times) * 1.2)
         fig.tight_layout()
         return fig
