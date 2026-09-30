@@ -441,6 +441,84 @@ def _(mo):
     return
 
 
+@app.cell
+def _(FormulaAnimation, mo):
+    _md_error_rel = mo.md(r"""##Error on the relaxation method
+    Let's assume that $x^*$ is a solution to the equation.""")
+
+    _relax_anim = mo.ui.anywidget(
+        FormulaAnimation(
+            title="What is the error?",
+            steps=[
+                {
+                    "tex": r"x^* = x_n + \delta_n",
+                    "note": "Express the true solution as the current iterate plus an error term δn.",
+                },
+                {
+                    "tex": r"x^* = x_{n+1} + \delta_{n+1}",
+                    "note": "We can do the same for the next iterate.",
+                },
+                {
+                    "tex": r"x_{n+1} - x_{n} = \delta_n - \delta_{n+1}",
+                    "note": "Equate the two expressions and rearrange.",
+                },
+                {
+                    "tex": r"x_{n+1} - x^* = (x_{n} - x^*)f'(x^*)",
+                    "note": "We can also write this equation (see before).",
+                },
+                {
+                    "tex": r"\delta_{n+1} = \delta_n f'(x^*)",
+                    "note": "Using both equations.",
+                },
+                {
+                    "tex": r"x_{n+1} - x_n = \delta_{n+1} (\dfrac{1}{f'(x)}-1)",
+                    "note": "Rearranging terms.",
+                },
+                {
+                    "tex": r"\delta_{n+1} = \frac{x_{n+1}-x_{n}}{\dfrac{1}{f'(x)}-1}",
+                    "note": "Final expression.",
+                },
+            
+            ],
+            height=280,
+        )
+    )
+
+    mo.vstack(
+        [_md_error_rel,_relax_anim]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Exercise: Mean-Field Theory of Ferromagnetism
+
+    #### Background
+    In the mean-field theory of ferromagnetism, the strength $M$ of magnetization of a ferromagnetic material like iron depends on temperature $T$ according to the formula:
+
+    $$M = \mu \tanh \frac{JM}{k_BT}$$
+
+    where $\mu$ is a magnetic moment, $J$ is a coupling constant, and $k_B$ is Boltzmann's constant.
+
+    To simplify things a little, we can make the substitutions $m = M/\mu$ and $C = \mu J / k_B$ so that the equation becomes:
+
+    $$m = \tanh \frac{Cm}{T}$$
+
+    It is clear that this equation always has a solution at $m = 0$, which implies a material that is not magnetized at all. However, depending on the temperature $T$, there may be other solutions where $m \neq 0$. Because there is no known method for finding these non-zero solutions exactly, we must use computational methods to find them.
+
+    #### Problem Statement
+
+    For this exercise, assume for simplicity that $C = 1$. Your goal is to write a computer program to find the non-zero solutions for the magnetization $m$ as a function of temperature $T$.
+
+    To ensure precision, your solutions must be accurate to within $\pm 10^{-6}$ of the true answer.
+
+    Tip: Think about how we can express the error $\delta$ in terms of the current estimate $m_n$ and the next estimate $m_{n+1}$, and how we can use this to determine when to stop iterating.
+    """)
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -1248,6 +1326,24 @@ def _(mo):
     combine the two families: they keep a bracket for safety, and take
     secant or inverse-interpolation steps for speed whenever those steps stay
     inside the bracket.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Exercise: Calculating the Inverse Hyperbolic Tangent
+
+    #### Background
+    In this exercise, we will use Newton's method to calculate the inverse (or arc) hyperbolic tangent of a number $u$.
+
+    By mathematical definition, $\operatorname{arctanh} u$ is the number $x$ such that $u = \tanh x$. We can reframe this as a root-finding problem: to find $x$, we need to find the solution to $f(x) = 0$, where our function is defined as:
+
+    $$f(x) = \tanh x - u$$
+
+    #### Problem Statement
+    Your objective is to write a custom program that numerically approximates the inverse hyperbolic tangent of a given value $u$ rather than relying on built-in inverse trigonometric functions.
     """)
     return
 
