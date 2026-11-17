@@ -16,7 +16,7 @@ def _():
     #     from utils import plot_settings_screen
     # except ImportError:
     #     pass
-    return go, mo, np, plt
+    return PlaySlider, go, mo, np, plt
 
 
 @app.cell(hide_code=True)
@@ -47,7 +47,7 @@ def _():
         "Rectangle": "0.4",
         "Exact": "crimson",
     }
-    return
+    return (method_colors,)
 
 
 @app.cell(hide_code=True)
@@ -902,7 +902,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     _md1 = mo.md(r"""
-    ### Exercise: Rutherford scattering
+    ### Example: Rutherford scattering
 
     At the beginning of the 20th century, Ernest Rutherford and his collaborators showed that when an $\alpha$ particle, i.e., a helium nucleus of two protons and two neutrons, passes close to an atom as shown in the figure, it is scattered, primarily by electrical repulsion from the positively charged nucleus of the atom, and that the angle $\theta$ through which it is scattered obeys
 
@@ -917,7 +917,7 @@ def _(mo):
     _md2 = mo.md(r"""
     where $Z$ is the atomic number of the nucleus, $e$ is the electron charge, $\epsilon_0$ is the permittivity of free space, $E$ is the kinetic energy of the incident $\alpha$ particle, and $b$ is the impact parameter, i.e., the perpendicular distance between the particle's initial trajectory and the axis running through the nucleus.
 
-    Consider a beam of $\alpha$ particles with energy $7.7\text{ MeV}$ that has a Gaussian profile in both its $x$ and $y$ axes with standard deviation $\sigma = a_0/100$, where $a_0$ is the Bohr radius. The beam is fired directly at a gold atom. Let us simulate the scattering process for one million $\alpha$ particles and calculate the fraction of particles that "bounce back" on scattering, i.e., that scatter through angles greater than $90^\circ$. The threshold value of the impact parameter for which this happens can be calculated from Eq. (10.19) with $\theta = 90^\circ$, which gives
+    Consider a beam of $\alpha$ particles with energy $7.7\text{ MeV}$ that has a Gaussian profile in both its $x$ and $y$ axes with standard deviation $\sigma = a_0/100$, where $a_0$ is the Bohr radius. The beam is fired directly at a gold atom. Let us simulate the scattering process for one million $\alpha$ particles and calculate the fraction of particles that "bounce back" on scattering, i.e., that scatter through angles greater than $90^\circ$. The threshold value of the impact parameter for which this happens can be calculated from the previous equation with $\theta = 90^\circ$, which gives
 
     $$
     b = \frac{Ze^2}{2\pi\epsilon_0 E}.
@@ -928,14 +928,1214 @@ def _(mo):
     Write a program to do the calculation and report the fraction of particles that bounce back. 
     """)
 
+    _md3 = mo.md(r"""YouTube videos:  
+    [The Discovery of the Atomic Nucleus](https://www.youtube.com/watch?v=wzALbzTdnc8)  
+    [The Alpha Scattering Experiment - A Level Physics](https://youtu.be/mWbStD9e2hQ?si=ia5pAARpXg7D5ckN)""").callout("info")
     mo.vstack(
         [
             _md1, 
             _image,
             _md2,
+            _md3
         ],
         # align="center",
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 7. Monte Carlo integration
+    ---
+
+    Recall the interpretation of a definite integral as the area under the curve.
+    We can use this interpretation to approximate integrals with random numbers.
+    Consider
+    $$
+    I = \int_a^b f(x)\, dx,
+    $$
+    where $0 \leq f(x) \leq y_{\rm max}$ on $[a,b]$.
+    We sample $N$ points uniformly in the enveloping rectangle $[a,b]\times[0,y_{\rm max}]$ and count the number $C$ of points that fall under the curve $f(x)$. The fraction $C/N$ estimates the ratio of the area under the curve to the area of the rectangle:
+    $$
+    I \approx (b-a)\,y_{\rm max} \frac{C}{N}.
+    $$
+    This is the **hit-or-miss** method. Each point is a biased coin with probability $p = I/[(b-a)y_{\rm max}]$, so $C$ follows the binomial distribution, and the statistical error is
+    $$
+    \delta I = (b-a)\, y_{\rm max} \sqrt{\frac{p(1-p)}{N}}, \qquad p \approx \frac{C}{N}.
+    $$
+    As an example take
+    $$
+    I = \int_0^\pi \sin x\, dx = 2.
+    $$
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    def hit_or_miss(f, N, a, b, ymax, rng):
+        """Hit-or-miss Monte Carlo estimate of int_a^b f(x) dx, with 0 <= f <= ymax.
+
+        Returns the estimate, its statistical error and the sampled points with a mask of the hits.
+        """
+        x = a + (b - a) * rng.random(N)
+        y = ymax * rng.random(N)
+        hits = y < f(x)
+        p = hits.mean()
+        area = (b - a) * ymax
+        return area * p, area * np.sqrt(p * (1 - p) / N), x, y, hits
+
+    return (hit_or_miss,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    hm_N = mo.ui.slider(50, 5000, step=50, value=1000, label="Number of points $N$")
+    return (hm_N,)
+
+
+@app.cell(hide_code=True)
+def _(hit_or_miss, hm_N, mo, np, plt):
+    _I, _err, _x, _y, _hits = hit_or_miss(np.sin, hm_N.value, 0, np.pi, 1.0, np.random.default_rng(9))
+    _xx = np.linspace(0, np.pi, 200)
+
+    _fig, _ax = plt.subplots(figsize=(8, 4.2))
+    _ax.plot(_x[_hits], _y[_hits], "o", ms=2.5, color="darkorange", label="under the curve")
+    _ax.plot(_x[~_hits], _y[~_hits], "o", ms=2.5, color="0.6", label="above the curve")
+    _ax.plot(_xx, np.sin(_xx), color="crimson", lw=2, label=r"$\sin x$")
+    _ax.set(xlim=(0, np.pi), ylim=(0, 1), xlabel="$x$", ylabel="$y$")
+    _ax.legend(loc="upper right")
+    _fig.tight_layout()
+    plt.close(_fig)
+
+    mo.vstack(
+        [
+            hm_N,
+            mo.hstack(
+                [
+                    _fig,
+                    mo.vstack(
+                        [
+                            mo.stat(label="Estimate", value=f"{_I:.4f} ± {_err:.4f}", caption="exact: 2"),
+                            mo.stat(label="Actual error", value=f"{abs(_I - 2):.4f}"),
+                        ]
+                    ),
+                ],
+                widths=[0.75, 0.25],
+                align="center",
+            ),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The error decreases only as $1/\sqrt{N}$: every additional correct digit requires 100 times more points.
+    In one dimension this is much worse than the quadrature rules of the numerical integration notebook (e.g. Simpson's rule has an error $\propto 1/N^4$).
+    The strength of Monte Carlo methods lies elsewhere, as we will see in Section 9.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 8. The mean value method
+    ---
+
+    The integral
+    $$
+    I = \int_a^b f(x)\, dx
+    $$
+    is related to the mean value $\langle f \rangle$ of $f$ over $(a,b)$:
+    $$
+    \langle f \rangle = \frac{1}{b-a}\int_a^b f(x)\, dx = \frac{I}{b-a}, \qquad\text{so that}\qquad I = (b-a) \langle f \rangle.
+    $$
+    The integral can therefore be estimated by evaluating $\langle f \rangle$ as the average of $f(x_i)$ over points $x_i$ sampled uniformly in $(a,b)$:
+    $$
+    \langle f \rangle \approx \frac{1}{N} \sum_{i=1}^N f(x_i).
+    $$
+    The error estimate follows from the variance of $f$, which requires $\langle f^2 \rangle$ as well:
+    $$
+    \delta I = (b-a) \sqrt{\frac{\langle f^2 \rangle - \langle f \rangle^2}{N}}.
+    $$
+    Unlike hit-or-miss, the mean value method needs neither $f\geq 0$ nor an upper bound $y_{\rm max}$, and it is always at least as accurate.
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    def int_mc(f, N, a, b, rng):
+        """Mean value Monte Carlo estimate of int_a^b f(x) dx and its statistical error."""
+        x = a + (b - a) * rng.random(N)
+        fval = f(x)
+        f_av = fval.mean()
+        fsq_av = (fval**2).mean()
+        return (b - a) * f_av, (b - a) * np.sqrt((fsq_av - f_av**2) / N)
+
+    return (int_mc,)
+
+
+@app.cell(hide_code=True)
+def _(hit_or_miss, int_mc, method_colors, mo, np, plt):
+    _Ns = np.unique(np.logspace(1, 6, 30).astype(int))
+    _rng = np.random.default_rng(11)
+    _hm = np.array([hit_or_miss(np.sin, n, 0, np.pi, 1.0, _rng)[:2] for n in _Ns])
+    _mv = np.array([int_mc(np.sin, n, 0, np.pi, _rng) for n in _Ns])
+
+    _fig, _ax = plt.subplots(figsize=(8, 4.4))
+    for _res, _name in [(_hm, "Hit-or-miss"), (_mv, "Mean value")]:
+        _ax.plot(_Ns, np.abs(_res[:, 0] - 2), "o", ms=4, color=method_colors[_name], alpha=0.6, label=f"{_name}: actual error")
+        _ax.plot(_Ns, _res[:, 1], "-", color=method_colors[_name], lw=2, label=f"{_name}: estimated $\\delta I$")
+    _ax.plot(_Ns, 1 / np.sqrt(_Ns), "--", color="black", lw=1, label=r"$\propto 1/\sqrt{N}$")
+    _ax.set(xscale="log", yscale="log", xlabel="$N$", ylabel="Error", title=r"$\int_0^\pi \sin x\, dx$")
+    _ax.legend(fontsize=8)
+    _fig.tight_layout()
+    plt.close(_fig)
+
+    mo.vstack(
+        [
+            mo.md("Both methods converge as $1/\\sqrt{N}$, but the mean value method has a smaller prefactor:"),
+            _fig,
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 9. Integrals in many dimensions
+    ---
+
+    Monte Carlo methods really shine for integrals in many dimensions.
+    Consider the $D$-dimensional integral
+    $$
+    I = \int_{a_1}^{b_1} d x_1 \ldots \int_{a_D}^{b_D} d x_D\, f(x_1,\ldots,x_D).
+    $$
+    The rectangle rule turns it into a $D$-dimensional sum
+    $$
+    I \approx \sum_{k_1 = 1}^{N_1} \ldots \sum_{k_D = 1}^{N_D} f(x_{k_1},\ldots,x_{k_D}) \prod_{d=1}^D h_d,
+    $$
+    with $h_d = (b_d - a_d)/N_d$ and $x_{k_d} = a_d + h_d (k_d - 1/2)$.
+    The total number of integrand evaluations is $N_{\rm tot} = \prod_{d=1}^D N_d$. With the same number $N$ of points in each dimension, it grows exponentially with $D$,
+    $$
+    N_{\rm tot} = N^D,
+    $$
+    which makes the method impractical in many dimensions: the **curse of dimensionality**.
+    For a fixed budget of $N_{\rm tot}$ evaluations, the error of the rectangle rule scales as $h^2 \propto N_{\rm tot}^{-2/D}$.
+
+    Monte Carlo methods are not plagued by this curse. The integral is the mean value of the integrand in the $D$-dimensional box,
+    $$
+    I = \langle f(x_1,\ldots,x_D) \rangle \prod_{d=1}^D (b_d-a_d),
+    $$
+    where $x_1,\ldots,x_D$ are independent random variables uniformly distributed in $[a_d,b_d]$.
+    Adding one dimension only means sampling one more number per point. The error estimate,
+    $$
+    \delta I = \sqrt{\frac{\langle f^2 \rangle - \langle f \rangle^2}{N}} \, \prod_{d=1}^D (b_d-a_d),
+    $$
+    still scales as $1/\sqrt{N}$, **whatever the dimension**. Monte Carlo therefore wins beyond $D \approx 4$.
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    def rectangle_rule_multi(f, N, a, b):
+        """Composite rectangle rule in D = len(a) dimensions with N slices per dimension.
+
+        f takes an array of shape (D, ...) holding the coordinates of the points.
+        """
+        h = [(bd - ad) / N for ad, bd in zip(a, b)]
+        axes = [ad + hd * (np.arange(N) + 0.5) for ad, hd in zip(a, h)]
+        grid = np.array(np.meshgrid(*axes, indexing="ij"))
+        return np.sum(f(grid)) * np.prod(h)
+
+    def int_mc_multi(f, N, a, b, rng):
+        """Mean value Monte Carlo estimate of a D-dimensional integral over the box [a,b]."""
+        a, b = np.asarray(a), np.asarray(b)
+        x = a[:, None] + (b - a)[:, None] * rng.random((len(a), N))
+        fval = f(x)
+        vol = np.prod(b - a)
+        f_av, fsq_av = fval.mean(), (fval**2).mean()
+        return vol * f_av, vol * np.sqrt((fsq_av - f_av**2) / N)
+
+    return int_mc_multi, rectangle_rule_multi
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Example: $\int \sin(x_1+\ldots+x_D)$
+
+    Let us consider
+    $$
+    I_D = \int_0^{\pi/2} d x_1 \ldots \int_{0}^{\pi/2} d x_D \, \sin(x_1 + x_2 + \ldots + x_D).
+    $$
+    Integrating over one variable after another, one finds $I_D = 2^{D/2}\sin(D\pi/4)$:
+
+    | $D$ | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+    |---|---|---|---|---|---|---|---|---|
+    | $I_D$ | 1 | 2 | 2 | 0 | −4 | −8 | −8 | 0 |
+
+    We compare the rectangle rule and Monte Carlo for the **same budget** $N_{\rm tot}$ of function evaluations: the rectangle rule uses $N = N_{\rm tot}^{1/D}$ slices per dimension (rounded down).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    multi_budget = mo.ui.dropdown(options={"10⁴": 10**4, "10⁵": 10**5, "10⁶": 10**6}, value="10⁵", label="Budget $N_{\\rm tot}$")
+    return (multi_budget,)
+
+
+@app.cell(hide_code=True)
+def _(
+    int_mc_multi,
+    method_colors,
+    mo,
+    multi_budget,
+    np,
+    plt,
+    rectangle_rule_multi,
+):
+    def _f_sinsum(x):
+        return np.sin(np.sum(x, axis=0))
+
+    _Ntot = multi_budget.value
+    _rng = np.random.default_rng(13)
+    _rows = []
+    for _D in range(1, 9):
+        _a, _b = [0.0] * _D, [np.pi / 2] * _D
+        _exact = 2 ** (_D / 2) * np.sin(_D * np.pi / 4)
+        _Nrect = int(np.floor(_Ntot ** (1 / _D) + 1e-9))
+        _Irect = rectangle_rule_multi(_f_sinsum, _Nrect, _a, _b)
+        _Imc, _err = int_mc_multi(_f_sinsum, _Ntot, _a, _b, _rng)
+        _rows.append(
+            {
+                "D": _D,
+                "exact": round(_exact, 6),
+                "N per dim (rectangle)": _Nrect,
+                "rectangle": round(_Irect, 6),
+                "rectangle error": float(f"{abs(_Irect - _exact):.2e}"),
+                "Monte Carlo": f"{_Imc:.4f} ± {_err:.4f}",
+                "MC error": float(f"{abs(_Imc - _exact):.2e}"),
+            }
+        )
+
+    _fig, _ax = plt.subplots(figsize=(7, 3.8))
+    _Ds = [r["D"] for r in _rows]
+    _ax.semilogy(_Ds, [r["rectangle error"] for r in _rows], "o-", color=method_colors["Rectangle"], label="Rectangle rule")
+    _ax.semilogy(_Ds, [r["MC error"] for r in _rows], "s-", color=method_colors["Mean value"], label="Monte Carlo")
+    _ax.set(xlabel="Dimension $D$", ylabel="Actual error", title=f"Same budget: $N_{{\\rm tot}}$ = {_Ntot:.0e}")
+    _ax.legend()
+    _fig.tight_layout()
+    plt.close(_fig)
+
+    mo.vstack([multi_budget, mo.ui.table(_rows, selection=None, pagination=False), _fig])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    In low dimension the rectangle rule is far more accurate, but its error grows quickly with $D$, as fewer and fewer slices per dimension fit in the budget. The Monte Carlo error stays of the same order in every dimension.
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    def ball_volume_rect(D, R, nrect):
+        """Volume of a D-dimensional ball from the recursion relation and the rectangle rule."""
+        if D == 0:
+            return 1.0
+        h = 2.0 / nrect
+        t = -1.0 + h * (np.arange(nrect) + 0.5)
+        return h * R**D * sum(ball_volume_rect(D - 1, np.sqrt(1 - tk**2), nrect) for tk in t)
+
+    def ball_volume_mc(D, R, N, rng):
+        """Hit-or-miss Monte Carlo volume of a D-dimensional ball. Returns volume, error, fraction inside."""
+        if D == 0:
+            return 1.0, 0.0, 1.0
+        x = -R + 2 * R * rng.random((N, D))
+        p = np.mean(np.sum(x**2, axis=1) < R**2)
+        return (2 * R) ** D * p, (2 * R) ** D * np.sqrt(p * (1 - p) / N), p
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 10. Importance sampling
+    ---
+
+    Recall the mean value method,
+    $$
+    I = \int_a^b f(x)\, dx = (b - a) \langle f \rangle, \qquad \langle f \rangle \approx \frac{1}{N} \sum_{i=1}^N f(x_i), \qquad x_i \in U(a,b).
+    $$
+    When $f(x)$ is highly peaked, only a small part of the interval $(a,b)$ contributes to the integral, and sampling $x$ with equal probability everywhere is wasteful. Similarly, when $f(x)$ has an integrable singularity the method still works, but the statistical uncertainty converges slowly (or $\langle f^2\rangle$ may even be infinite).
+
+    **Importance sampling** improves on this. Let $w(x) > 0$ be a normalized probability density on $(a,b)$, $\int_a^b w(x)\, dx = 1$. The mean value of a function $g(x)$ of a random variable $x$ distributed according to $w(x)$ is
+    $$
+    \langle g \rangle_w = \int_a^b g(x) w(x)\, dx.
+    $$
+    Dividing and multiplying the integrand by $w(x)$ we rewrite $I$ as
+    $$
+    I = \int_a^b \frac{f(x)}{w(x)}\, w(x)\, dx = \left\langle \frac{f}{w} \right\rangle_w \approx \frac{1}{N}\sum_{i=1}^N \frac{f(x_i)}{w(x_i)}, \qquad x_i \text{ sampled from } w(x).
+    $$
+    For $w(x) = 1/(b-a)$ we recover the mean value method.
+    The error estimate reads as before,
+    $$
+    \delta I = \sqrt{\frac{\left\langle (f/w)^2 \right\rangle_w - \left\langle f/w \right\rangle_w^2}{N}}.
+    $$
+    Choosing $w(x)$ similar in shape to $f(x)$ makes $f/w$ nearly constant, and the variance small: we sample most where the integrand matters, or cancel its singularities.
+
+    In the extreme case $w(x) = f(x)/I$ (for $f \geq 0$), the ratio $f(x)/w(x) = I$ is the same for every sample, and $\delta I = 0$: a single sample gives the exact answer! This ideal is out of reach, since normalizing $w$ requires knowing $I$, but it shows what to aim for: the closer $w$ is to being proportional to $f$, the smaller the error.
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    def int_mc_weighted(f, N, w, sampler, rng):
+        """Importance sampling estimate of int f(x) dx and its statistical error.
+
+        w: normalized probability density, sampler(N, rng): N samples drawn from w.
+        """
+        x = sampler(N, rng)
+        ratio = f(x) / w(x)
+        r_av, rsq_av = ratio.mean(), (ratio**2).mean()
+        return r_av, np.sqrt((rsq_av - r_av**2) / N)
+
+    return (int_mc_weighted,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Example: an integrable singularity
+
+    Consider
+    $$
+    I = \int_0^1 \frac{x^{-1/2}}{e^x + 1}\, dx \approx 0.83893,
+    $$
+    which has an integrable singularity at $x = 0$.
+    A natural weight cancels the singularity in $f/w$:
+    $$
+    w(x) = \frac{1}{2\sqrt{x}}, \qquad \frac{f(x)}{w(x)} = \frac{2}{e^x + 1}, \qquad I = \left\langle \frac{2}{e^x + 1} \right\rangle_w.
+    $$
+    We sample from $w(x)$ by inverse transform: $G_w(x) = \int_0^x w(x')\,dx' = \sqrt{x} = \eta$, thus
+    $$
+    x = \eta^2.
+    $$
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    def f_singular(x):
+        return 1.0 / np.sqrt(x) / (np.exp(x) + 1)
+
+    def uniform_w(x):
+        return np.ones_like(x)
+
+    def uniform_sampler(N, rng):
+        return rng.random(N)
+
+    def rsqrt_w(x):
+        return 1.0 / (2.0 * np.sqrt(x))
+
+    def rsqrt_sampler(N, rng):
+        return rng.random(N) ** 2
+
+    return f_singular, rsqrt_sampler, rsqrt_w, uniform_sampler, uniform_w
+
+
+@app.cell(hide_code=True)
+def _(f_singular, method_colors, np, plt, rsqrt_w):
+    _x = np.linspace(0.002, 1, 500)
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 3.8))
+    _ax1.plot(_x, f_singular(_x), color=method_colors["Mean value"], lw=2)
+    _ax1.fill_between(_x, f_singular(_x), alpha=0.3, color=method_colors["Mean value"])
+    _ax1.set(xlim=(0, 1), ylim=(0, 6), xlabel="$x$", ylabel="$f(x)$", title="Integrand: what uniform sampling averages")
+    _ax2.plot(_x, f_singular(_x) / rsqrt_w(_x), color=method_colors["Importance"], lw=2)
+    _ax2.set(xlim=(0, 1), ylim=(0, 6), xlabel="$x$", ylabel="$f(x)/w(x)$", title="What importance sampling averages")
+    _fig.tight_layout()
+    plt.close(_fig)
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    imp_N = mo.ui.slider(2, 6, step=0.5, value=5, label=r"$\log_{10} N$")
+    return (imp_N,)
+
+
+@app.cell(hide_code=True)
+def _(
+    f_singular,
+    imp_N,
+    int_mc_weighted,
+    mo,
+    np,
+    rsqrt_sampler,
+    rsqrt_w,
+    uniform_sampler,
+    uniform_w,
+):
+    _N = int(10**imp_N.value)
+    _Iu, _eu = int_mc_weighted(f_singular, _N, uniform_w, uniform_sampler, np.random.default_rng(15))
+    _Ii, _ei = int_mc_weighted(f_singular, _N, rsqrt_w, rsqrt_sampler, np.random.default_rng(15))
+    mo.vstack(
+        [
+            imp_N,
+            mo.hstack(
+                [
+                    mo.stat(label="Uniform sampling, w = 1", value=f"{_Iu:.5f} ± {_eu:.5f}", caption=f"N = {_N:,}"),
+                    mo.stat(label="Importance sampling, w = 1/(2√x)", value=f"{_Ii:.5f} ± {_ei:.5f}", caption=f"N = {_N:,}"),
+                    mo.stat(label="Error ratio", value=f"{_eu / _ei:.1f}", caption="uniform / importance"),
+                ],
+                justify="center",
+                gap=2,
+            ),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The statistical error of importance sampling is more than 10 times smaller for the same number of samples. Since the error scales as $1/\sqrt{N}$, uniform sampling would need more than 100 times as many samples to reach the same accuracy.
+    In general, the smoother one can make $f(x)/w(x)$, the smaller the statistical error.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 11. Monte Carlo simulation
+    ---
+
+    Besides integration, random numbers are used to **simulate** physical processes that are random themselves, such as the radioactive decay of Section 4, or that involve so many degrees of freedom that a statistical description is the only practical one.
+
+    ### Example: Brownian motion
+
+    Brownian motion is the motion of a particle in a gas or liquid, buffeted by collisions with the much smaller particles of the medium.
+    We consider a simplified 2D model on a lattice: at each step, the particle moves by one unit in one of the four directions, chosen at random. This is a **random walk**.
+
+    After $n$ steps of length 1, the displacement $\mathbf{r}_n = \sum_{i=1}^n \mathbf{s}_i$ is a sum of independent steps with $\langle \mathbf{s}_i\rangle = 0$ and $\langle \mathbf{s}_i \cdot \mathbf{s}_j\rangle = \delta_{ij}$, so the mean squared displacement grows linearly in time,
+    $$
+    \langle r_n^2 \rangle = n,
+    $$
+    the signature of **diffusion** ($\langle r^2\rangle = 4Dt$ in 2D).
+    """)
+    return
+
+
+@app.cell
+def _(np):
+    def random_walk(n_steps, rng, n_walkers=1):
+        """2D lattice random walks. Returns x, y of shape (n_walkers, n_steps+1), starting at the origin."""
+        dirs = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+        steps = dirs[rng.integers(4, size=(n_walkers, n_steps))]
+        pos = np.concatenate([np.zeros((n_walkers, 1, 2), dtype=int), np.cumsum(steps, axis=1)], axis=1)
+        return pos[..., 0], pos[..., 1]
+
+    return (random_walk,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    walk_steps = mo.ui.slider(100, 100000, step=100, value=10000, label="Number of steps $n$")
+    walk_seed = mo.ui.number(start=0, stop=10**6, value=0, label="Seed")
+    return walk_seed, walk_steps
+
+
+@app.cell(hide_code=True)
+def _(mo, np, plt, random_walk, walk_seed, walk_steps):
+    _n = walk_steps.value
+    _x, _y = random_walk(_n, np.random.default_rng(walk_seed.value))
+    _x, _y = _x[0], _y[0]
+
+    # mean squared displacement over many walkers
+    _nw = 500
+    _xs, _ys = random_walk(1000, np.random.default_rng(walk_seed.value + 1), n_walkers=_nw)
+    _msd = np.mean(_xs**2 + _ys**2, axis=0)
+
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 4.4))
+    _ax1.plot(_x, _y, color="steelblue", lw=0.6)
+    _ax1.plot([0], [0], "o", color="seagreen", label="start")
+    _ax1.plot([_x[-1]], [_y[-1]], "o", color="crimson", label="end")
+    # square axes centred on the start, scaled with the diffusion length sqrt(n)
+    _lim = 1.05 * max(2 * np.sqrt(_n), np.abs(_x).max(), np.abs(_y).max())
+    _ax1.add_patch(plt.Circle((0, 0), np.sqrt(_n), fill=False, ls="--", color="black", lw=1, label=r"$r = \sqrt{n}$"))
+    _ax1.set(xlim=(-_lim, _lim), ylim=(-_lim, _lim), xlabel="x", ylabel="y", title=f"One random walk, {_n} steps")
+    _ax1.set_aspect("equal")
+    _ax1.legend()
+    _ax2.plot(_msd, color="darkorange", lw=2, label=f"average over {_nw} walkers")
+    _ax2.plot([0, 1000], [0, 1000], "--", color="black", lw=1, label=r"$\langle r^2\rangle = n$")
+    _ax2.set(xlabel="Step $n$", ylabel=r"$\langle r_n^2 \rangle$", title="Mean squared displacement")
+    _ax2.legend()
+    _fig.tight_layout()
+    plt.close(_fig)
+
+    mo.vstack(
+        [
+            mo.hstack([walk_steps, walk_seed], justify="center", gap=2),
+            _fig,
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    A single walk is erratic, but the average over many walkers follows the deterministic law $\langle r_n^2\rangle = n$: the typical distance travelled grows only as $\sqrt{n}$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 12. Monte Carlo simulation and statistical mechanics
+    ---
+
+    For a system in thermal equilibrium at temperature $T$, the probability to find the system in microstate $i$ is given by the **Boltzmann distribution**
+    $$
+    P_i = \frac{e^{-\beta E_i}}{Z}, \qquad Z = \sum_i e^{-\beta E_i},
+    $$
+    where $\beta = 1/(k_BT)$ is the inverse temperature, $E_i$ the energy of state $i$, and $Z$ the partition function.
+    We are typically interested in the average of a physical observable $X$,
+    $$
+    \langle X \rangle = \sum_i X_i P_i,
+    $$
+    where $X_i$ is the value of $X$ in microstate $i$.
+    The number of microstates grows exponentially with the size of the system, so neither $Z$ nor the sum can be computed exactly beyond a handful of particles: we need Monte Carlo methods.
+
+    **Uniform sampling.** A first idea is to pick $N$ microstates uniformly at random and weight each of them with its Boltzmann factor,
+    $$
+    \langle X \rangle \approx \frac{\sum_{k=1}^N X_k e^{-\beta E_k}}{\sum_{k=1}^N e^{-\beta E_k}}~.
+    $$
+    This does not require $Z$, but it is very inefficient: almost all randomly chosen states have a high energy and a negligible Boltzmann factor, while the few low-energy states that dominate the average are hardly ever picked.
+
+    **Importance sampling.** As in Section 10, it is much better to sample the states where the "integrand" matters, i.e. with probability $P_i \propto e^{-\beta E_i}$ itself. The average is then a simple mean over $N$ samples,
+    $$
+    \langle X \rangle \approx \frac{1}{N} \sum_{k=1}^N X_k.
+    $$
+    How to sample from $P_i$ without knowing $Z$ is the subject of Section 13.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(np, plt):
+    def draw_spins(spins, ax, arrow_length=0.7):
+        """Draw a 2D spin configuration as arrows: up (+1) in dark red, down (-1) in navy.
+
+        spins[r, c] is the spin in row r (counted from the top) and column c.
+        """
+        rows, cols = spins.shape
+        y, x = np.mgrid[rows - 1 : -1 : -1, 0:cols]  # row 0 at the top
+        for s, color in [(1, "darkred"), (-1, "navy")]:
+            sel = spins == s
+            ax.quiver(
+                x[sel], y[sel], np.zeros(sel.sum()), s * arrow_length * np.ones(sel.sum()),
+                color=color, pivot="middle", angles="xy", scale_units="xy", scale=1,
+                width=0.012, headwidth=3.5, headlength=3.5, headaxislength=3,
+            )
+        ax.set(xlim=(-0.6, cols - 0.4), ylim=(-0.6, rows - 0.4), aspect="equal")
+        ax.axis("off")
+
+    # The configuration of the example figure: +1 = up, -1 = down, top row first
+    _example = np.array(
+        [
+            [-1, -1, -1, -1, -1, +1, +1, +1, +1, +1],
+            [+1, -1, -1, -1, -1, +1, +1, +1, +1, +1],
+            [-1, -1, -1, -1, -1, -1, +1, +1, +1, +1],
+            [-1, -1, -1, -1, -1, -1, +1, +1, +1, +1],
+            [+1, +1, +1, -1, -1, -1, +1, +1, +1, +1],
+            [+1, +1, +1, +1, +1, +1, +1, +1, +1, +1],
+            [+1, +1, +1, +1, +1, +1, +1, +1, +1, +1],
+            [+1, -1, -1, +1, +1, +1, +1, +1, +1, +1],
+            [+1, -1, -1, +1, +1, +1, +1, +1, +1, -1],
+            [-1, -1, +1, +1, +1, +1, +1, +1, +1, -1],
+        ]
+    )
+    ising_example_fig, _ax = plt.subplots(figsize=(4.4, 3.5))
+    draw_spins(_example, _ax)
+    ising_example_fig.tight_layout()
+    plt.close(ising_example_fig)
+    return (ising_example_fig,)
+
+
+@app.cell(hide_code=True)
+def _(ising_example_fig, mo):
+    mo.vstack(
+        [
+            mo.md(r"""
+    ### The Ising model
+
+    As our test system we take the **Ising model**: spins $s_i = \pm 1$ (magnetic dipoles pointing up or down) on a square $L\times L$ lattice, with energy
+    $$
+    E = -J \sum_{\langle ij\rangle} s_i s_j,
+    $$
+    where the sum runs over the pairs of nearest neighbours, and $J > 0$ for a ferromagnet: aligned neighbours lower the energy.
+    """),
+            mo.center(ising_example_fig),
+            mo.md(r"""
+    Each spin interacts with its four nearest neighbours (up, down, left, right).
+    We use periodic boundary conditions (the right neighbour of the last column is the first column, etc.) so that every spin has four neighbours, and units with $J = k_B = 1$.
+    The magnetization is
+    $$
+    M = \sum_i s_i.
+    $$
+    In 2D the model has a phase transition at the Curie temperature
+    $$
+    T_C = \frac{2}{\ln(1+\sqrt{2})} \approx 2.269:
+    $$
+    below $T_C$ the system develops a spontaneous magnetization $|M| > 0$.
+
+    A $4\times4$ lattice has only $2^{16} = 65536$ microstates, few enough to compute $\langle E \rangle$ **exactly** by summing over all of them. This gives a reference to test the sampling methods against.
+    """),
+        ]
+    )
+    return
+
+
+@app.cell
+def _(np):
+    T_curie = 2 / np.log(1 + np.sqrt(2))
+
+    def ising_energy(spins, periodic=True):
+        """Energy of 2D Ising configuration(s), J = 1. spins has shape (..., L, L)."""
+        if periodic:
+            return -np.sum(spins * np.roll(spins, 1, axis=-1), axis=(-2, -1)) - np.sum(
+                spins * np.roll(spins, 1, axis=-2), axis=(-2, -1)
+            )
+        return -np.sum(spins[..., :, 1:] * spins[..., :, :-1], axis=(-2, -1)) - np.sum(
+            spins[..., 1:, :] * spins[..., :-1, :], axis=(-2, -1)
+        )
+
+    # All 2^16 configurations of the 4x4 lattice, and their energies
+    _codes = np.arange(2**16)
+    ising4_states = (1 - 2 * ((_codes[:, None] >> np.arange(16)) & 1)).reshape(-1, 4, 4)
+    ising4_E = ising_energy(ising4_states)
+
+    def ising4_exact_E(T):
+        """Exact <E> per spin of the periodic 4x4 Ising model, by summing over all states."""
+        w = np.exp(-(ising4_E - ising4_E.min()) / T)  # shift the energies to avoid overflow
+        return np.sum(ising4_E * w) / np.sum(w) / 16
+
+    return T_curie, ising4_E, ising4_exact_E, ising_energy
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    uni_T = mo.ui.slider(0.5, 5.0, step=0.1, value=1.5, label="Temperature $T$")
+    return (uni_T,)
+
+
+@app.cell(hide_code=True)
+def _(ising4_E, ising4_exact_E, method_colors, mo, np, plt, uni_T):
+    _T = uni_T.value
+    _exact = ising4_exact_E(_T)
+    _rng = np.random.default_rng(16)
+    _Nmax = 100000
+    _E = ising4_E[_rng.integers(2**16, size=_Nmax)]  # uniformly chosen microstates
+    _w = np.exp(-(_E - ising4_E.min()) / _T)
+    _Ns = np.arange(1, _Nmax + 1)
+    _estimate = np.cumsum(_E * _w) / np.cumsum(_w) / 16
+
+    _fig, _ax = plt.subplots(figsize=(8, 4))
+    _ax.plot(_Ns, _estimate, color=method_colors["Hit-or-miss"], lw=1.5, label="Uniform sampling with Boltzmann weights")
+    _ax.axhline(_exact, ls="--", color=method_colors["Exact"], label="Exact (sum over all 65536 states)")
+    _ax.set(xscale="log", xlabel="Number of samples $N$", ylabel=r"$\langle E\rangle / L^2$", ylim=(-2.1, 0.1), title=f"4×4 Ising model, T = {_T:.1f}")
+    _ax.legend(loc="lower right")
+    _fig.tight_layout()
+    plt.close(_fig)
+
+    _p_ground = 2 / np.sum(np.exp(-(ising4_E - ising4_E.min()) / _T))  # the 2 ground states have E = E_min
+    mo.vstack(
+        [
+            uni_T,
+            mo.hstack(
+                [
+                    _fig,
+                    mo.vstack(
+                        [
+                            mo.stat(label="Exact ⟨E⟩/L²", value=f"{_exact:.4f}"),
+                            mo.stat(label=f"Estimate, N = {_Nmax:,}", value=f"{_estimate[-1]:.4f}"),
+                            mo.stat(label="Weight of the 2 ground states", value=f"{_p_ground:.3f}", caption="vs 2/65536 = 3·10⁻⁵ of the samples"),
+                        ]
+                    ),
+                ],
+                widths=[0.75, 0.25],
+                align="center",
+            ),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    At high temperature uniform sampling works, but lower the temperature: the two fully aligned ground states carry most of the Boltzmann weight, yet they make up only $2/65536$ of the uniformly drawn samples. The estimate jumps every time one of them happens to be drawn, and for larger lattices (a $20\times20$ lattice has $2^{400}\approx 10^{120}$ states) it would never be drawn at all.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## 13. The Markov chain method
+    ---
+
+    How can we pick states from the distribution $P_i = e^{-\beta E_i} / Z$ when we cannot even compute $Z$?
+    It turns out we don't have to: the distribution can be generated by a **Markov chain**, a sequence of states in which each state is obtained from the previous one by a random move.
+
+    Suppose the current state is $i$. We move to a new state $j$ with a transition probability $T_{ij}$, where by construction
+    $$
+    \sum_j T_{ij} = 1.
+    $$
+    The Markov chain method chooses the $T_{ij}$ such that (**detailed balance**)
+    $$
+    \frac{T_{ij}}{T_{ji}} = \frac{P_j}{P_i} = \frac{e^{-\beta E_j} /Z}{e^{-\beta E_i} / Z} = e^{-\beta(E_j - E_i)}.
+    $$
+    The unknown $Z$ cancels in the ratio!
+
+    Imagine that at the current step the probability to be in state $i$ is the Boltzmann probability $P_i$.
+    The probability to be in state $j$ at the next step is then
+    $$
+    \sum_i P_i T_{ij} = \sum_i P_j T_{ji} = P_j \sum_i T_{ji} = P_j.
+    $$
+    Therefore, once the chain has reached the Boltzmann distribution, all subsequent states also follow the Boltzmann distribution. It can be proven that, starting from an arbitrary initial state, the chain eventually converges to the Boltzmann distribution: after an **equilibration** period, the states of the chain are samples from $P_i$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### The Metropolis algorithm
+
+    The **Metropolis algorithm** realizes transition probabilities that satisfy detailed balance.
+    Suppose we have a move set: $M$ possible moves from state $i$ to other states, such that each move can be undone by a move of the set.
+
+    1. Pick a move to a candidate state $j$ uniformly at random (probability $1/M$ for each move).
+    2. Compare the energy $E_j$ of the candidate with the energy $E_i$ of the current state:
+        - if $E_j \le E_i$, accept the move;
+        - if $E_j > E_i$, accept the move with probability (a biased coin, Section 4)
+    $$
+    P_{a} = e^{-\beta (E_j - E_i)}.
+    $$
+
+    Why does this work? Take $E_j > E_i$. The probability to select $j$ is $1/M$ and to accept it $e^{-\beta (E_j - E_i)}$, thus $T_{ij} = e^{-\beta (E_j - E_i)}/M$. From $j$, the probability to select $i$ is $1/M$, and the move is always accepted since $E_i < E_j$, thus $T_{ji} = 1/M$. The ratio is
+    $$
+    \frac{T_{ij}}{T_{ji}} = e^{-\beta (E_j - E_i)},
+    $$
+    as required. The full algorithm:
+
+    1. Choose a starting state.
+    2. Choose a move uniformly at random.
+    3. Accept the move with probability $P_a = \min\left(1, e^{-\beta (E_j - E_i)}\right)$.
+    4. Measure the quantity $X$ in the current state (whether or not the move was accepted) and add it to the average.
+    5. Repeat from step 2.
+
+    When a move is rejected the system stays in state $i$, and this state is counted again in the average: $i \to i$ is a perfectly valid step.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Example: the Ising model
+
+    For the Ising model, a move flips one randomly chosen spin, $s_i \to -s_i$. Only the bonds of spin $i$ with its four neighbours change, so the energy change is cheap to compute:
+    $$
+    \Delta E = 2 J s_i \sum_{j \in \text{neighbours}(i)} s_j \in \{-8, -4, 0, 4, 8\}.
+    $$
+    $L^2$ attempted flips, one per spin on average, are called a **sweep**.
+    """)
+    return
+
+
+@app.cell
+def _(ising_energy, np):
+    import math
+
+    def ising_metropolis(spins, T, steps, rng, snapshot_every=0):
+        """Metropolis simulation of the periodic 2D Ising model (J = 1) with single spin flips.
+
+        Returns the energy and magnetization after each step, the final spins,
+        and a snapshot of the spins every snapshot_every steps (if > 0).
+        """
+        L = spins.shape[0]
+        s = spins.tolist()  # Python lists are much faster than NumPy for element-wise access
+        E, M = int(ising_energy(spins)), int(spins.sum())
+        ii = rng.integers(L, size=steps).tolist()
+        jj = rng.integers(L, size=steps).tolist()
+        eta = rng.random(steps).tolist()
+        Es, Ms = np.empty(steps + 1), np.empty(steps + 1)
+        Es[0], Ms[0] = E, M
+        snapshots = [np.array(s)]
+        for k in range(steps):
+            i, j = ii[k], jj[k]
+            row = s[i]
+            neighbours = s[i - 1][j] + s[(i + 1) % L][j] + row[j - 1] + row[(j + 1) % L]
+            dE = 2 * row[j] * neighbours
+            if dE <= 0 or eta[k] < math.exp(-dE / T):  # Metropolis acceptance
+                row[j] = -row[j]
+                E += dE
+                M += 2 * row[j]
+            Es[k + 1], Ms[k + 1] = E, M
+            if snapshot_every and (k + 1) % snapshot_every == 0:
+                snapshots.append(np.array(s))
+        return Es, Ms, np.array(s), snapshots
+
+    def random_spins(L, rng):
+        """A random (infinite temperature) L x L spin configuration."""
+        return rng.choice(np.array([-1, 1]), size=(L, L))
+
+    return ising_metropolis, math, random_spins
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    First, let us check the Metropolis algorithm on the $4\times4$ lattice, where we know the exact answer. We discard the first 1000 steps (equilibration) and average the energy over the rest.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    ising4_E,
+    ising4_exact_E,
+    ising_metropolis,
+    method_colors,
+    mo,
+    np,
+    plt,
+    random_spins,
+    uni_T,
+):
+    _T = uni_T.value
+    _rng = np.random.default_rng(17)
+    _Nmax, _neq = 100000, 1000
+    _Es, _, _, _ = ising_metropolis(random_spins(4, _rng), _T, _Nmax + _neq, _rng)
+    _metro = np.cumsum(_Es[_neq + 1 :]) / np.arange(1, _Nmax + 1) / 16
+    _E = ising4_E[_rng.integers(2**16, size=_Nmax)]
+    _w = np.exp(-(_E - ising4_E.min()) / _T)
+    _uniform = np.cumsum(_E * _w) / np.cumsum(_w) / 16
+    _Ns = np.arange(1, _Nmax + 1)
+
+    _fig, _ax = plt.subplots(figsize=(8, 4))
+    _ax.plot(_Ns, _uniform, color=method_colors["Hit-or-miss"], lw=1.2, label="Uniform sampling with weights")
+    _ax.plot(_Ns, _metro, color=method_colors["Importance"], lw=1.5, label="Metropolis (importance sampling)")
+    _ax.axhline(ising4_exact_E(_T), ls="--", color=method_colors["Exact"], label="Exact")
+    _ax.set(xscale="log", xlabel="Number of samples $N$", ylabel=r"$\langle E\rangle / L^2$", ylim=(-2.1, 0.1), title=f"4×4 Ising model, T = {_T:.1f}")
+    _ax.legend(loc="lower right")
+    _fig.tight_layout()
+    plt.close(_fig)
+
+    mo.vstack(
+        [
+            mo.md("The temperature is set by the slider of Section 12:"),
+            uni_T,
+            _fig,
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The Metropolis estimate converges to the exact value at every temperature, including low temperatures where uniform sampling fails.
+
+    Now a larger, $L = 20$ lattice ($2^{400}$ states). Starting from a random configuration, we follow the magnetization during several independent runs.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(T_curie, mo):
+    mag_T = mo.ui.slider(0.5, 5.0, step=0.1, value=1.5, label="Temperature $T$")
+    mag_run = mo.ui.run_button(label="Run 5 simulations")
+    mo.vstack([mo.hstack([mag_T, mag_run], justify="center", gap=2), mo.md(f"$T_C \\approx {T_curie:.3f}$")], align="center")
+    return mag_T, mag_run
+
+
+@app.cell(hide_code=True)
+def _(T_curie, ising_metropolis, mag_T, mag_run, mo, np, plt, random_spins):
+    mo.stop(not mag_run.value, mo.md("*Choose a temperature and press the button (about 3 seconds).*"))
+
+    _L, _sweeps = 20, 1000
+    _rng = np.random.default_rng()
+    _fig, _ax = plt.subplots(figsize=(8, 4))
+    for _run in range(5):
+        _, _Ms, _, _ = ising_metropolis(random_spins(_L, _rng), mag_T.value, _sweeps * _L**2, _rng)
+        _ax.plot(np.arange(len(_Ms)) / _L**2, _Ms / _L**2, lw=1, label=f"Run {_run + 1}")
+    _ax.set(xlabel="Sweeps", ylabel="$M / L^2$", ylim=(-1.05, 1.05), title=f"20×20 Ising model, T = {mag_T.value:.1f} ({'below' if mag_T.value < T_curie else 'above'} $T_C$)")
+    _ax.legend(loc="lower right", fontsize=8)
+    _fig.tight_layout()
+    plt.close(_fig)
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Below $T_C$ each run ends up magnetized, $M/L^2 \to \pm 1$: the sign is chosen at random, a **spontaneous symmetry breaking**. Close to $T_C$ the magnetization fluctuates strongly and slowly, and above $T_C$ it fluctuates around zero.
+
+    It is instructive to watch the spins themselves. Press ▶ to follow a $100 \times 100$ lattice, one frame per sweep.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    anim_T = mo.ui.slider(0.5, 4.0, step=0.1, value=1.5, label="Temperature $T$")
+    anim_run = mo.ui.run_button(label="Simulate 100 sweeps")
+    mo.hstack([anim_T, anim_run], justify="center", gap=2)
+    return anim_T, anim_run
+
+
+@app.cell(hide_code=True)
+def _(anim_T, anim_run, ising_metropolis, np, random_spins):
+    # nothing is simulated until the button is pressed (the display cell shows a message instead)
+    anim_M, anim_snapshots, anim_T_used = None, None, None
+    if anim_run.value:
+        _L = 100
+        _rng = np.random.default_rng()
+        _, anim_M, _, anim_snapshots = ising_metropolis(random_spins(_L, _rng), anim_T.value, 4000 * _L**2, _rng, snapshot_every=_L**2)
+        anim_T_used = anim_T.value
+    return anim_M, anim_T_used, anim_snapshots
+
+
+@app.cell(hide_code=True)
+def _(PlaySlider, mo):
+    anim_play = mo.ui.anywidget(PlaySlider(value=0, min_value=0, max_value=4000, step=1, interval_ms=150))  # 100 sweeps
+    return (anim_play,)
+
+
+@app.cell(hide_code=True)
+def _(anim_M, anim_T_used, anim_play, anim_snapshots, mo, np, plt):
+    mo.stop(anim_snapshots is None, mo.md("*Choose a temperature and press the button (about 3 seconds).*"))
+    _n = min(int(anim_play.value["value"]), len(anim_snapshots) - 1)
+    _L = anim_snapshots[0].shape[0]
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 4.4), gridspec_kw={"width_ratios": [1, 1.3]})
+    _ax1.imshow(anim_snapshots[_n].T, cmap="gray_r", vmin=-1, vmax=1, origin="lower", interpolation="nearest")
+    _ax1.set(xlabel="x", ylabel="y", title=f"T = {anim_T_used:.1f}, sweep {_n}")
+    _sweeps = np.arange(len(anim_M)) / _L**2
+    _ax2.plot(_sweeps[: _n * _L**2 + 1], anim_M[: _n * _L**2 + 1] / _L**2, color="steelblue")
+    _ax2.set(xlim=(0, len(anim_snapshots) - 1), ylim=(-1.05, 1.05), xlabel="Sweeps", ylabel="$M/L^2$", title="Magnetization")
+    _fig.tight_layout()
+    plt.close(_fig)
+    mo.vstack([mo.hstack([mo.md("**Sweep:**"), anim_play], justify="center"), _fig])
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Below $T_C$, domains of aligned spins (black: up, white: down) form and grow; the domain walls cost energy and slowly disappear. Above $T_C$ the spins stay disordered, with short-lived clusters; near $T_C$ the clusters exist at all length scales.
+
+    Finally, we scan the temperature and measure the equilibrium averages $\langle |M| \rangle / L^2$ and $\langle E \rangle/L^2$, discarding the first sweeps for equilibration.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    scan_run = mo.ui.run_button(label="Scan the temperature (about 5 seconds)")
+    scan_run
+    return (scan_run,)
+
+
+@app.cell(hide_code=True)
+def _(T_curie, ising_metropolis, mo, np, plt, scan_run):
+    mo.stop(not scan_run.value, mo.md("*Press the button to run the temperature scan.*"))
+
+    _L, _neq, _nmeas = 16, 200, 800
+    _rng = np.random.default_rng(18)
+    _Ts = np.linspace(1.0, 4.0, 16)
+    _absM, _Eav = [], []
+    _spins = np.ones((_L, _L), dtype=int)
+    for _T in _Ts:  # start each temperature from the end state of the previous one
+        _Es, _Ms, _spins, _ = ising_metropolis(_spins, _T, (_neq + _nmeas) * _L**2, _rng)
+        _absM.append(np.mean(np.abs(_Ms[_neq * _L**2 :])) / _L**2)
+        _Eav.append(np.mean(_Es[_neq * _L**2 :]) / _L**2)
+
+    _fig, (_ax1, _ax2) = plt.subplots(1, 2, figsize=(10, 4))
+    _ax1.plot(_Ts, _absM, "o-", color="#1d4ed8")
+    _ax1.set(xlabel="$T$", ylabel=r"$\langle |M| \rangle / L^2$", title="Magnetization")
+    _ax2.plot(_Ts, _Eav, "o-", color="crimson")
+    _ax2.set(xlabel="$T$", ylabel=r"$\langle E \rangle / L^2$", title="Energy")
+    for _ax in (_ax1, _ax2):
+        _ax.axvline(T_curie, ls="--", color="black", lw=1, label="$T_C$")
+        _ax.legend()
+    _fig.tight_layout()
+    plt.close(_fig)
+    _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    The magnetization drops from 1 to nearly 0 around $T_C$. On a finite lattice the transition is smoothed out; it becomes sharp only in the limit $L \to \infty$.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Example: finite volume effects in the ideal gas
+
+    As a second example, consider an ideal gas of $N$ non-interacting particles in a cubic box of side $L$. Quantum mechanically, the energy levels of a particle are obtained by solving the Schrödinger equation of a free particle,
+    $$
+    -\frac{\hbar^2}{2m} \nabla^2 \psi = E \psi.
+    $$
+
+    - For a box with hard walls, $\psi = 0$ on the walls, and
+    $$
+    E_{n_x,n_y,n_z} =  \frac{\pi^2 \hbar^2}{2mL^2} (n_x^2 + n_y^2 + n_z^2), \qquad n_x, n_y, n_z = 1,2,\ldots
+    $$
+    - For periodic boundary conditions, $\psi(x) = \psi(x+L)$, and
+    $$
+    E_{n_x,n_y,n_z} =  \frac{2 \pi^2 \hbar^2}{mL^2} (n_x^2 + n_y^2 + n_z^2), \qquad n_x, n_y, n_z = 0, \pm1, \pm2,\ldots
+    $$
+
+    Neglecting quantum statistics, the total energy is $E = \sum_{i=1}^N E_{n_x^{(i)},n_y^{(i)},n_z^{(i)}}$, and a microstate is specified by the $3N$ quantum numbers.
+
+    The move set: pick a particle and one of its three quantum numbers at random, and increase or decrease it by one. A move to a forbidden state ($n = 0$ for hard walls) is rejected, i.e. the particle stays in its present state. For periodic boundary conditions, $n$ and $-n$ have the same energy, and we only keep track of $|n|$: a move from $n = 0$ always goes to $|n| = 1$, which correctly accounts for the two states $n = \pm 1$.
+
+    Classically, the equipartition theorem gives $E = \frac{3}{2} N k_B T$. With quantized levels this holds only when $k_BT$ is large compared with the level spacing. We work in units $m = \hbar = L = k_B = 1$.
+    """)
+    return
+
+
+@app.cell
+def _(math, np):
+    def ideal_gas_metropolis(T, N, steps, rng, periodic=False):
+        """Metropolis simulation of N particles in a cube with quantized levels.
+
+        Returns E/(N T) after each step. All particles start in the lowest level n = (1,1,1).
+        """
+        factor = 2 * np.pi**2 if periodic else np.pi**2 / 2
+        nmin = 0 if periodic else 1
+        n = [[1, 1, 1] for _ in range(N)]
+        E = factor * 3 * N
+        particle = rng.integers(N, size=steps).tolist()
+        component = rng.integers(3, size=steps).tolist()
+        up = (rng.random(steps) < 0.5).tolist()
+        eta = rng.random(steps).tolist()
+        e_trace = np.empty(steps + 1)
+        e_trace[0] = E / (N * T)
+        for k in range(steps):
+            i, j = particle[k], component[k]
+            old = n[i][j]
+            new = abs(old + 1) if up[k] else abs(old - 1)  # |n| for periodic BC
+            if new >= nmin:
+                dE = factor * (new**2 - old**2)
+                if dE <= 0 or eta[k] < math.exp(-dE / T):
+                    n[i][j] = new
+                    E += dE
+            e_trace[k + 1] = E / (N * T)
+        return e_trace
+
+    return (ideal_gas_metropolis,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    gas_bc = mo.ui.radio(options=["hard walls", "periodic"], value="hard walls", label="Boundary conditions", inline=True)
+    gas_bc
+    return (gas_bc,)
+
+
+@app.cell(hide_code=True)
+def _(gas_bc, ideal_gas_metropolis, mo, np, plt):
+    _N, _steps = 1000, 500000
+    _periodic = gas_bc.value == "periodic"
+    _rng = np.random.default_rng(19)
+    # exact equilibrium value: sum over the levels of one quantum number, times 3
+    _eps = 2 * np.pi**2 if _periodic else np.pi**2 / 2
+    _levels = np.arange(-400, 401) if _periodic else np.arange(1, 401)
+    _fig, _ax = plt.subplots(figsize=(8, 4.2))
+    _final = []
+    for _T, _c in zip([5.0, 10.0, 100.0], ["#1d4ed8", "seagreen", "darkorange"]):
+        _e = ideal_gas_metropolis(_T, _N, _steps, _rng, periodic=_periodic)
+        _w = np.exp(-_eps * _levels**2 / _T)
+        _exact = 3 * np.sum(_eps * _levels**2 * _w) / np.sum(_w) / _T
+        _ax.plot(_e, color=_c, lw=1.5, label=f"$T = {_T:g}$")
+        _final.append(mo.stat(label=f"E/(NT) at T = {_T:g}", value=f"{_e[-_steps // 3 :].mean():.3f}", caption=f"exact: {_exact:.3f}"))
+    _ax.axhline(1.5, ls="--", color="black", lw=1, label="classical limit 3/2")
+    _ax.set(ylim=(0, 5), xlabel="Step", ylabel="$E/(NT)$", title=f"Ideal gas of N = {_N} particles, {gas_bc.value}")
+    _ax.legend()
+    _fig.tight_layout()
+    plt.close(_fig)
+    mo.hstack([_fig, mo.vstack(_final)], widths=[0.75, 0.25], align="center")
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    After equilibration (a few hundred steps per particle), the energy fluctuates around its equilibrium value, which agrees with the exact result obtained by summing the Boltzmann factors over the levels (possible here only because the particles do not interact). At high temperature it approaches the classical result $E = \frac{3}{2}NT$, while at lower temperatures the quantization of the levels matters: with hard walls the zero-point energy pushes $E/(NT)$ above $3/2$, while with periodic boundary conditions the $n = 0$ level lowers it.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Summary: random numbers and Monte Carlo methods
+
+    **Generating random numbers**
+
+    | Task | Method | Recipe |
+    |---|---|---|
+    | Uniform $\eta\in[0,1)$ | library generator (Mersenne Twister, PCG64) | `rng = np.random.default_rng(seed)`, `rng.random()` |
+    | Event with probability $p$ | biased coin | accept if $\eta < p$ |
+    | Density $\rho(x)$ with invertible CDF $G$ | inverse transform | $x = G^{-1}(\eta)$, e.g. $t = -\tau\ln(1-\eta)$ |
+    | Bounded density $\rho(x) \le \rho^{\rm max}$ on a finite range | rejection sampling | accept $x_{\rm cand}$ if $\rho^{\rm max}\eta < \rho(x_{\rm cand})$ |
+    | Gaussian | Box–Muller | $r = \sqrt{-2\ln(1-\eta_1)}$, $\phi = 2\pi\eta_2$ |
+    | Uniform in a disk / on a sphere | inverse transform | $r = \sqrt{\eta}$ / $\cos\theta = 2\eta - 1$ |
+
+    **Monte Carlo integration**: the error always scales as $1/\sqrt{N}$, independently of the dimension.
+
+    | Method | Estimate | Error | Remarks |
+    |---|---|---|---|
+    | Hit-or-miss | $(b-a)\,y_{\rm max}\, C/N$ | $(b-a)\,y_{\rm max}\sqrt{p(1-p)/N}$ | needs $0\le f \le y_{\rm max}$ |
+    | Mean value | $(b-a)\langle f\rangle$ | $(b-a)\sqrt{(\langle f^2\rangle - \langle f\rangle^2)/N}$ | always at least as good as hit-or-miss |
+    | Importance sampling | $\langle f/w\rangle_w$ | $\sqrt{(\langle (f/w)^2\rangle_w - \langle f/w\rangle_w^2)/N}$ | best when $f/w$ is nearly constant |
+
+    In one dimension, quadrature rules are far more accurate; Monte Carlo wins for integrals in more than about four dimensions, where grid-based rules suffer from the curse of dimensionality.
+
+    **Markov chain Monte Carlo**
+
+    | Method | Move accepted with probability | Use |
+    |---|---|---|
+    | Metropolis algorithm | $\min\left(1, e^{-\beta\Delta E}\right)$ | samples the Boltzmann distribution without $Z$; averages $\langle X\rangle \approx \frac{1}{N}\sum_k X_k$ after equilibration |
+    """)
     return
 
 
