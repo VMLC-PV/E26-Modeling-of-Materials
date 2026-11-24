@@ -7,3 +7,11 @@ scipy
 pymatgen
 pymatviz
 plotly
+wigglystuff
+# from lecture 12 on (Gaussian processes, Bayesian optimization); CPU build is enough:
+# pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch
+gpytorch
+botorch
+# from lecture 14 on (evolutionary strategies):
+pymoo

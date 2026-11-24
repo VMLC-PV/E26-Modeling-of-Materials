@@ -13,7 +13,6 @@ def _():
     from scipy.stats import norm
     from wigglystuff import PlaySlider
 
-
     return PlaySlider, curve_fit, mo, norm, np, plt
 
 
@@ -387,10 +386,13 @@ def _(
             mo.md(
                         rf"""
     **95% credible intervals** (shaded in the marginals)  
-    $E_a \in [{_ciE[0]:.3f}, {_ciE[1]:.3f}]$ eV   
-    $\ln D_0 \in [{_ciL[0]:.2f}, {_ciL[1]:.2f}]$  
-    i.e. $D_0$ known within a factor {np.exp((_ciL[1] - _ciL[0]) / 2):.1f}  
+
+    $E_a \in [{_ciE[0]:.3f}, {_ciE[1]:.3f}]$ eV \quad $\ln D_0 \in [{_ciL[0]:.2f}, {_ciL[1]:.2f}]$  
+
+    i.e. $D_0$ known within a factor {np.exp((_ciL[1] - _ciL[0]) / 2):.1f}
+
     **Correlation coefficient**
+
     $\rho = {_rho:.3f}$
     """
                     ),
